@@ -1,4 +1,4 @@
-import React, { Component } from 'react';
+import { useState, useEffect } from 'react';
 import '../styles.css';
 import { Button } from './Button/Button';
 import { ImageGallery } from './ImageGallery/ImageGallery';
@@ -10,113 +10,88 @@ import PropTypes from 'prop-types';
 
 const KEY = '33284780-c89390efdc4f502db65b92b61';
 
-export class App extends Component {
-  state = {
-    images: [],
-    searchQuery: '',
-    page: 1,
-    hasMore: true,
-    loading: false,
-    modalOpen: false,
-    selectedImage: null,
-  };
+const App = () => {
+  const [images, setImages] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [selectedImage, setSelectedImage] = useState(null);
 
-  handlePagination = e => {
+  const handlePagination = e => {
     e.preventDefault();
-    if (this.state.hasMore === true) {
-      this.setState({ page: this.state.page + 1 }, () => {
-        this.fetchImages();
-      });
+    if (hasMore === true) {
+      setPage(page + 1);
     }
   };
 
-  handleClick = e => {
+  const handleClick = e => {
     e.preventDefault();
-    this.setState({
-      modalOpen: true,
-      selectedImage: e.target.src,
-    });
+    setModalOpen(true);
+    setSelectedImage(e.target.src);
   };
 
-  handleCloseModal = () => {
-    this.setState({ modalOpen: false });
+  const handleCloseModal = () => {
+    setModalOpen(false);
   };
 
-  componentDidMount() {
-    this.fetchImages();
-    document.addEventListener('keydown', this.handleKeyDown);
-  }
+  useEffect(() => {
+    fetchImages();
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [searchQuery, page]);
 
-  componentWillUnmount() {
-    document.removeEventListener('keydown', this.handleKeyDown);
-  }
-
-  handleKeyDown = e => {
+  const handleKeyDown = e => {
     if (e.key === 'Escape') {
-      this.setState({
-        modalOpen: false,
-      });
+      setModalOpen(false);
     }
   };
 
-  handleSearch = searchQuery => {
-    this.setState({ searchQuery }, () => {
-      this.fetchImages();
-    });
-    this.setState({ images: [] });
+  const handleSearch = query => {
+    setSearchQuery(query);
+    setImages([]);
   };
 
-  fetchImages = async () => {
+  const fetchImages = async () => {
     try {
-      this.setState({ loading: true });
+      setLoading(true);
       const response = await axios.get(
-        `https://pixabay.com/api/?q=${this.state.searchQuery}&page=${this.state.page}&key=${KEY}&image_type=photo&orientation=horizontal&per_page=12}`
+        `https://pixabay.com/api/?q=${searchQuery}&page=${page}&key=${KEY}&image_type=photo&orientation=horizontal&per_page=12}`
       );
       const newImages = response.data.hits;
       if (response.data.hits.length === 0) {
         alert('Nothing was found');
-        this.setState({
-          hasMore: false,
-          loading: false,
-        });
+        setHasMore(false);
+        setLoading(false);
       } else {
-        this.setState(prevState => ({
-          images: [...prevState.images, ...newImages],
-          loading: false,
-          hasMore: true,
-        }));
-
-        this.setState({ newImages });
+        setImages(prevState => [...prevState, ...newImages]);
+        setLoading(false);
+        setHasMore(true);
       }
     } catch (error) {
       console.log(error);
     }
   };
 
-  render() {
-    return (
-      <div>
-        <Searchbar onSearch={this.handleSearch} />
-        <ImageGallery
-          images={this.state.images}
-          modalOpen={this.state.modalOpen}
-          handleClick={this.handleClick}
-        />
-        {this.state.loading && <Loader />}
-        <Button
-          pagination={this.handlePagination}
-          hasMore={this.state.hasMore}
-        />
-        {this.state.modalOpen && (
-          <Modal
-            image={this.state.selectedImage}
-            handleCloseModal={this.handleCloseModal}
-          />
-        )}
-      </div>
-    );
-  }
-}
+  return (
+    <div>
+      <Searchbar onSearch={handleSearch} />
+      <ImageGallery
+        images={images}
+        modalOpen={modalOpen}
+        handleClick={handleClick}
+      />
+      {loading && <Loader />}
+      <Button pagination={handlePagination} hasMore={hasMore} />
+      {modalOpen && (
+        <Modal image={selectedImage} handleCloseModal={handleCloseModal} />
+      )}
+    </div>
+  );
+};
 
 App.propTypes = {
   images: PropTypes.object,
@@ -126,3 +101,5 @@ App.propTypes = {
   modalOpen: PropTypes.bool,
   selectedImage: PropTypes.object,
 };
+
+export default App;
